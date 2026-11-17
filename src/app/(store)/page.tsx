@@ -20,7 +20,7 @@ const VALUE = [
   { icon: Boxes, title: "Priced by the case", text: "Case count and cost per piece on every item, so comparing is easy." },
   { icon: ClipboardList, title: "Live stock you can trust", text: "Stock is reserved the moment your order is placed — no surprise backorders." },
   { icon: Truck, title: "Next-day local delivery", text: "Order before the cutoff and receive it tomorrow. Free over $200." },
-  { icon: ReceiptText, title: "Built for repeat buyers", text: "Reorder what you bought last week in a couple of clicks." },
+  { icon: ReceiptText, title: "Fast, simple ordering", text: "Search by name or SKU, set case quantities and check out in minutes." },
 ];
 
 export default async function HomePage() {
