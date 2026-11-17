@@ -39,3 +39,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+# project
+!.env.example
+.pgdata/
+/coverage
+
+
+# duplicate agent-skill folders created by the scaffolder (kept locally, .claude is tracked)
+/.agents/
+/.windsurf/
+
