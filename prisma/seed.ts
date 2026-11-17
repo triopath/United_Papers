@@ -25,7 +25,6 @@ async function main() {
     supIds.push({ key: s.name.split(" ")[0], id: row.id });
   }
 
-  let skuCount = 0;
   for (const p of products) {
     const product = await prisma.product.upsert({
       where: { slug: p.slug },
@@ -66,7 +65,6 @@ async function main() {
           });
         }
       }
-      skuCount++;
     }
   }
 
