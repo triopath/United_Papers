@@ -3,6 +3,7 @@ import { ProductArt } from "@/components/brand/product-art";
 import { formatUsd } from "@/lib/pricing";
 import type { CatalogProduct } from "@/server/catalog";
 import { StockBadge } from "./stock-badge";
+import { productImages } from "@/lib/product-images";
 
 export function ProductCard({ product }: { product: CatalogProduct }) {
   const prices = product.variants.map((v) => v.casePriceCents);
@@ -13,8 +14,7 @@ export function ProductCard({ product }: { product: CatalogProduct }) {
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:-translate-y-0.5 hover:shadow-lg">
       <Link href={`/products/${product.slug}`} className="block" aria-label={`View ${product.name}`}>
-        <ProductArt kind={product.imageKind} imageUrl={product.imageUrl} alt={product.name} className="aspect-[4/3] w-full" />
-      </Link>
+<ProductArt kind={product.imageKind} imageUrl={productImages[product.slug] ?? product.imageUrl} alt={product.name} className="aspect-[4/3] w-full" />      </Link>
       <div className="flex flex-1 flex-col gap-2 p-4">
         <span className="text-xs font-semibold uppercase tracking-wide text-teal-700">{product.category.name}</span>
         <Link href={`/products/${product.slug}`} className="font-heading text-base font-bold leading-snug text-navy-900 hover:underline">{product.name}</Link>

@@ -42,7 +42,7 @@ export function ProductArt({
   if (imageUrl) {
     return (
       <div className={cn("relative overflow-hidden bg-navy-50", className)}>
-        <Image src={imageUrl} alt={alt} fill sizes="(max-width: 768px) 100vw, 400px" className="object-cover" priority={priority} />
+        <Image src={imageUrl} alt={alt} fill sizes="(max-width: 768px) 100vw, 400px" className="object-contain object-center p-1" priority={priority} />
       </div>
     );
   }
