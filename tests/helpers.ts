@@ -5,7 +5,7 @@ import type { CheckoutInput } from "@/lib/validation";
 export async function resetDb() {
   await prisma.$executeRawUnsafe(
     `TRUNCATE inventory_reservations, inventory_movements, sales_order_lines, sales_orders, customers,
-     inventory_balances, product_variants, products, suppliers, categories RESTART IDENTITY CASCADE`,
+     inventory_balances, product_variants, products, suppliers, categories, admin_users RESTART IDENTITY CASCADE`,
   );
   await prisma.$executeRawUnsafe(`ALTER SEQUENCE order_number_seq RESTART WITH 10001`);
 }
@@ -24,6 +24,14 @@ export async function seedMini() {
   const cup = await mk("cup", "UP-CUP-H16", "34.00", 10);
   const lid = await mk("lid", "UP-LID-H90B", "28.50", 3);
   return { cup, lid };
+}
+
+/** Creates a back-office user exactly like `npm run admin:create` does (bcrypt hash only). */
+export async function createAdmin(email: string, password: string, opts: { role?: "OWNER" | "ADMIN" | "STAFF"; active?: boolean } = {}) {
+  const bcrypt = (await import("bcryptjs")).default;
+  return prisma.adminUser.create({
+    data: { email: email.toLowerCase(), passwordHash: bcrypt.hashSync(password, 4), role: opts.role ?? "ADMIN", active: opts.active ?? true },
+  });
 }
 
 export function checkout(items: { sku: string; quantity: number }[], over: Partial<CheckoutInput> = {}): CheckoutInput {

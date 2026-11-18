@@ -31,7 +31,7 @@ Available to sell = onHand − reserved. Stock is *reserved* at order time; dedu
 
 ## Security model (pilot)
 - Prices/totals from the browser are ignored; Zod strips unknown fields. Quantities 1–500, ≤50 lines.
-- Admin: bcrypt hash + email from env (fail-closed if unset), signed HS256 JWT in an httpOnly SameSite=Lax cookie (Secure over HTTPS), 8h. Every admin page calls `requireAdminPage()`, every admin API `assertAdminReq()`. No seed/reset/debug endpoints exist.
+- Admin: users live in the `admin_users` table (email unique + lowercase CHECK, bcrypt-12 hash only, role OWNER/ADMIN/STAFF, active flag, lastLoginAt). Login = lookup + bcrypt compare (dummy compare for unknown emails, identical error for every failure), then a signed HS256 JWT (`SESSION_SECRET`) in an httpOnly SameSite=Lax cookie (Secure over HTTPS), 8h. Portal accepts OWNER/ADMIN only. Every admin page calls `requireAdminPage()`, every admin API `assertAdminReq()`. No admin password exists in env/code. Create/reset users with `npm run admin:create -- <email> <password> [role]`. No seed/reset/debug endpoints exist.
 - Public mutations (`/api/orders`, `/api/cart/quote`, login) have an origin check and an in-memory rate limit (**best-effort, per instance — use a shared store in production**).
 - No PII in logs. All data synthetic; orders flagged `isDemo`; UI labels demo/simulated parts (payment, delivery, email).
 - Order confirmation URL uses the unguessable-enough UUID (v7); it shows the customer's business name and city only.

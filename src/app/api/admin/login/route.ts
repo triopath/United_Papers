@@ -1,5 +1,5 @@
 import { loginSchema } from "@/lib/validation";
-import { adminAuthDiagnostics, createSessionToken, SESSION_COOKIE, sessionCookieOptions, verifyAdminCredentials } from "@/server/auth";
+import { createSessionToken, SESSION_COOKIE, sessionCookieOptions, verifyAdminCredentials } from "@/server/auth";
 import { clientIp, isSameOrigin, json, rateLimit, tooMany } from "@/server/http";
 
 export async function POST(req: Request) {
@@ -10,13 +10,10 @@ export async function POST(req: Request) {
   const parsed = loginSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return json({ error: "Enter your email and password." }, 400);
 
-  const ok = await verifyAdminCredentials(parsed.data.email, parsed.data.password);
-  if (!ok) {
-    console.warn("admin login failed", JSON.stringify(adminAuthDiagnostics(parsed.data.email)));
-    return json({ error: "Incorrect email or password." }, 401);
-  }
+  const user = await verifyAdminCredentials(parsed.data.email, parsed.data.password);
+  if (!user) return json({ error: "Incorrect email or password." }, 401);
 
-  const token = await createSessionToken(parsed.data.email);
+  const token = await createSessionToken(user.email, user.role);
   const proto = req.headers.get("x-forwarded-proto") ?? new URL(req.url).protocol.replace(":", "");
   const res = json({ ok: true });
   res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions(proto === "https"));

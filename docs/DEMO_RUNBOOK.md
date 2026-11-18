@@ -6,14 +6,18 @@ Project: `C:\Sample files\united-papers`. Requires Node 20+. No Docker, no Postg
 ```powershell
 cd "C:\Sample files\united-papers"
 npm install
-npm run setup:env          # creates .env with random secrets; PRINTS the admin password once
+npm run setup:env          # creates .env with random secrets (DATABASE_URL, SESSION_SECRET)
 npm run db:start           # TERMINAL 1 — real PostgreSQL on 127.0.0.1:54329. Leave it running.
 # TERMINAL 2:
 npm run db:generate
 npm run db:migrate         # applies migrations (incl. safety constraints)
 npm run db:seed            # synthetic catalog, 6 customers, 7 historical orders (idempotent)
 ```
-Lost the admin password? `npm run setup:env -- --reset-admin` (prints a new one; restart the app).
+Then create the back-office login (stored in the `admin_users` table as a bcrypt hash):
+```powershell
+npm run admin:create -- unitedpapers@gmail.com "<password>"      # also resets the password if the user exists
+```
+Hosted database: set `$env:DATABASE_URL` to that database (URL-encode special characters, e.g. `@` -> `%40`), run `npx prisma migrate deploy`, `npm run db:seed` and the same `admin:create`, then clear the variable (`Remove-Item Env:DATABASE_URL`).
 
 ## Run the demo
 ```powershell
@@ -21,7 +25,7 @@ npm run db:start           # terminal 1 (if not already running)
 npm run build              # terminal 2
 npm run start              # http://localhost:3000   (use `npm run dev` while developing)
 ```
-Admin: http://localhost:3000/admin (owner@unitedpapers.demo + the printed password).
+Admin: http://localhost:3000/admin (the user you created with `admin:create`).
 
 ## Reset to a clean demo state (DESTROYS local demo data)
 ```powershell
@@ -48,7 +52,7 @@ Limits/risks: anyone with the link can use the **public store** (orders are demo
 ## Hosted option (Vercel + Supabase) — needs the owner's accounts
 1. Create a dedicated *demo* Supabase project; copy the **pooled** Postgres URL.
 2. From this repo: `$env:DATABASE_URL="<url>"; npx prisma migrate deploy; npm run db:seed`.
-3. Vercel: import the repo, set `DATABASE_URL`, `SESSION_SECRET` (random 48+ bytes), `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH` (bcrypt, escape `$` as `\$` in the dashboard if needed), `NEXT_PUBLIC_DEMO_BANNER=true`. Deploy.
+3. Vercel: import the repo and set ONLY `DATABASE_URL` (transaction pooler, port 6543), `SESSION_SECRET` (random 48+ chars; `npm run prod:env`) and `NEXT_PUBLIC_DEMO_BANNER=true`. There is no admin password variable: admin users are rows in the database (`npm run admin:create`). Delete any old `ADMIN_*` variables. Deploy.
 4. Replace the in-memory rate limiter with a shared store before any real traffic.
 
 ## Troubleshooting

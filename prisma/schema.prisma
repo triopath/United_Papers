@@ -35,6 +35,26 @@ enum MovementType {
   ADJUSTMENT
 }
 
+enum AdminRole {
+  OWNER
+  ADMIN
+  STAFF
+}
+
+// Back-office login accounts. Passwords are stored ONLY as bcrypt hashes.
+model AdminUser {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  email        String    @unique
+  passwordHash String
+  role         AdminRole @default(ADMIN)
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime? @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@map("admin_users")
+}
+
 model Category {
   id          String    @id @default(uuid(7)) @db.Uuid
   slug        String    @unique

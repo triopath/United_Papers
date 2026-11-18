@@ -1,5 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import bcrypt from "bcryptjs";
+import { beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/server/db";
 import { createSessionToken, SESSION_COOKIE } from "@/server/auth";
 import { GET as adminOrders } from "@/app/api/admin/orders/route";
@@ -9,7 +8,7 @@ import { POST as login } from "@/app/api/admin/login/route";
 import { POST as placeOrder } from "@/app/api/orders/route";
 import { POST as quote } from "@/app/api/cart/quote/route";
 import { GET as products } from "@/app/api/catalog/products/route";
-import { checkout, resetDb, seedMini, stock } from "./helpers";
+import { checkout, createAdmin, resetDb, seedMini, stock } from "./helpers";
 
 const req = (url: string, init: RequestInit & { ip?: string } = {}) =>
   new Request(`http://localhost${url}`, {
@@ -17,14 +16,15 @@ const req = (url: string, init: RequestInit & { ip?: string } = {}) =>
     headers: { "content-type": "application/json", "x-forwarded-for": init.ip ?? "10.0.0.1", ...(init.headers as object) },
   });
 
-beforeAll(() => {
-  process.env.ADMIN_EMAIL = "owner@unitedpapers.demo";
-  process.env.ADMIN_PASSWORD_HASH = bcrypt.hashSync("correct-horse-battery", 4);
-});
+const EMAIL = "unitedpapers@gmail.com";
+const PASSWORD = "Correct-Horse-9";
+const attempt = (ip: string, email: string, password: string) =>
+  login(req("/api/admin/login", { method: "POST", ip, body: JSON.stringify({ email, password }) }));
 
 beforeEach(async () => {
   await resetDb();
   await seedMini();
+  await createAdmin(EMAIL, PASSWORD);
 });
 
 describe("admin API authorization", () => {
@@ -43,54 +43,62 @@ describe("admin API authorization", () => {
       const res = await adminOrders(req("/api/admin/orders", { headers: { cookie } }));
       expect(res.status).toBe(401);
     }
-    const good = await createSessionToken("owner@unitedpapers.demo");
+    const good = await createSessionToken(EMAIL, "ADMIN");
     const tampered = good.slice(0, -4) + (good.endsWith("AAAA") ? "BBBB" : "AAAA");
     expect((await adminOrders(req("/api/admin/orders", { headers: { cookie: `${SESSION_COOKIE}=${tampered}` } }))).status).toBe(401);
   });
 
   it("allows a validly signed admin session", async () => {
-    const token = await createSessionToken("owner@unitedpapers.demo");
+    const token = await createSessionToken(EMAIL, "ADMIN");
     const res = await adminOrders(req("/api/admin/orders", { headers: { cookie: `${SESSION_COOKIE}=${token}` } }));
     expect(res.status).toBe(200);
   });
 });
 
-describe("admin login", () => {
-  it("rejects wrong credentials and issues an httpOnly cookie for correct ones", async () => {
-    const bad = await login(req("/api/admin/login", { method: "POST", ip: "10.1.0.1", body: JSON.stringify({ email: "owner@unitedpapers.demo", password: "nope" }) }));
-    expect(bad.status).toBe(401);
-    const wrongEmail = await login(req("/api/admin/login", { method: "POST", ip: "10.1.0.2", body: JSON.stringify({ email: "x@y.com", password: "correct-horse-battery" }) }));
-    expect(wrongEmail.status).toBe(401);
-    const ok = await login(req("/api/admin/login", { method: "POST", ip: "10.1.0.3", body: JSON.stringify({ email: "owner@unitedpapers.demo", password: "correct-horse-battery" }) }));
+describe("admin login (database users)", () => {
+  it("accepts correct credentials, sets an httpOnly cookie and records lastLoginAt", async () => {
+    const ok = await attempt("10.1.0.3", EMAIL, PASSWORD);
     expect(ok.status).toBe(200);
     const setCookie = ok.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain(SESSION_COOKIE);
     expect(setCookie.toLowerCase()).toContain("httponly");
+    expect((await prisma.adminUser.findUniqueOrThrow({ where: { email: EMAIL } })).lastLoginAt).not.toBeNull();
   });
 
-  it("fails closed when admin credentials are not configured", async () => {
-    const saved = process.env.ADMIN_PASSWORD_HASH;
-    delete process.env.ADMIN_PASSWORD_HASH;
-    const res = await login(req("/api/admin/login", { method: "POST", ip: "10.1.0.4", body: JSON.stringify({ email: "owner@unitedpapers.demo", password: "anything" }) }));
-    process.env.ADMIN_PASSWORD_HASH = saved;
-    expect(res.status).toBe(401);
+  it("is case-insensitive on email and case-sensitive on password", async () => {
+    expect((await attempt("10.1.1.1", "UnitedPapers@GMAIL.com", PASSWORD)).status).toBe(200);
+    expect((await attempt("10.1.1.2", EMAIL, PASSWORD.toLowerCase())).status).toBe(401);
   });
 
-  it("supports a plain ADMIN_PASSWORD env var (takes precedence) and still rejects wrong ones", async () => {
-    process.env.ADMIN_PASSWORD = "Demo-Pass-2026";
-    const post = (ip: string, password: string) =>
-      login(req("/api/admin/login", { method: "POST", ip, body: JSON.stringify({ email: "OWNER@unitedpapers.demo", password }) }));
-    expect((await post("10.1.1.1", "Demo-Pass-2026")).status).toBe(200);
-    expect((await post("10.1.1.2", "correct-horse-battery")).status).toBe(401); // old hash password no longer works
-    expect((await post("10.1.1.3", "demo-pass-2026")).status).toBe(401); // case-sensitive
-    delete process.env.ADMIN_PASSWORD;
+  it("rejects wrong password, unknown email, and returns the same message for both", async () => {
+    const wrongPass = await attempt("10.1.0.1", EMAIL, "nope-nope-nope");
+    const unknown = await attempt("10.1.0.2", "someone@else.com", PASSWORD);
+    expect(wrongPass.status).toBe(401);
+    expect(unknown.status).toBe(401);
+    expect(await wrongPass.json()).toEqual(await unknown.json());
+  });
+
+  it("rejects deactivated users and non-portal roles", async () => {
+    await createAdmin("off@x.com", PASSWORD, { active: false });
+    await createAdmin("staff@x.com", PASSWORD, { role: "STAFF" });
+    expect((await attempt("10.1.2.1", "off@x.com", PASSWORD)).status).toBe(401);
+    expect((await attempt("10.1.2.2", "staff@x.com", PASSWORD)).status).toBe(401);
+  });
+
+  it("never stores the password in plain text", async () => {
+    const u = await prisma.adminUser.findUniqueOrThrow({ where: { email: EMAIL } });
+    expect(u.passwordHash).not.toContain(PASSWORD);
+    expect(u.passwordHash).toMatch(/^\$2[aby]\$/);
+  });
+
+  it("with no admin users configured nobody can log in", async () => {
+    await prisma.adminUser.deleteMany();
+    expect((await attempt("10.1.3.1", EMAIL, PASSWORD)).status).toBe(401);
   });
 
   it("rate-limits repeated login attempts", async () => {
     let last = 0;
-    for (let i = 0; i < 10; i++) {
-      last = (await login(req("/api/admin/login", { method: "POST", ip: "10.9.9.9", body: JSON.stringify({ email: "owner@unitedpapers.demo", password: "x" }) }))).status;
-    }
+    for (let i = 0; i < 10; i++) last = (await attempt("10.9.9.9", EMAIL, "wrong-password")).status;
     expect(last).toBe(429);
   });
 });

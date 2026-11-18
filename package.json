@@ -19,7 +19,8 @@
                     "images:optimize":  "tsx scripts/optimize-images.ts",
                     "postinstall":  "prisma generate",
                     "prod:env":  "tsx scripts/prod-env.ts",
-                    "db:check":  "tsx scripts/db-check.ts"
+                    "db:check":  "tsx scripts/db-check.ts",
+                    "admin:create":  "tsx scripts/create-admin.ts"
                 },
     "dependencies":  {
                          "@base-ui/react":  "^1.9.0",
