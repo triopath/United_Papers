@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import { toCents } from "@/lib/pricing";
+import { productImages } from "@/lib/product-images";
 
 export type StockLevel = "in" | "low" | "out";
 
@@ -42,7 +43,8 @@ function mapProduct(p: Row): CatalogProduct {
     brand: p.brand,
     description: p.description,
     imageKind: p.imageKind,
-    imageUrl: p.imageUrl,
+    // One source of truth for photos: every page (card, detail, related) gets the same image.
+    imageUrl: productImages[p.slug] ?? p.imageUrl,
     category: { slug: p.category.slug, name: p.category.name },
     variants: p.variants.map((v) => {
       const available = v.balance ? Math.max(0, v.balance.onHand - v.balance.reserved) : 0;
@@ -62,8 +64,9 @@ function mapProduct(p: Row): CatalogProduct {
   };
 }
 
-function queryProducts(where: object) {
+function queryProducts(where: object, take?: number) {
   return prisma.product.findMany({
+    take,
     where: { active: true, ...where },
     include: {
       category: true,
@@ -104,8 +107,9 @@ export async function getProductBySlug(slug: string) {
 }
 
 export async function getFeaturedProducts(limit = 8) {
-  const all = await listProducts();
-  return all.filter((p) => p.variants.some((v) => v.stock !== "out")).slice(0, limit);
+  // Don't load the whole catalog for a home-page strip: take a small window, then drop sold-out items.
+  const rows = await queryProducts({}, limit * 2);
+  return rows.map(mapProduct).filter((p) => p.variants.some((v) => v.stock !== "out")).slice(0, limit);
 }
 
 export async function getOrderConfirmation(orderId: string) {
