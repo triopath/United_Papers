@@ -1,5 +1,5 @@
 import { loginSchema } from "@/lib/validation";
-import { createSessionToken, SESSION_COOKIE, sessionCookieOptions, verifyAdminCredentials } from "@/server/auth";
+import { adminAuthDiagnostics, createSessionToken, SESSION_COOKIE, sessionCookieOptions, verifyAdminCredentials } from "@/server/auth";
 import { clientIp, isSameOrigin, json, rateLimit, tooMany } from "@/server/http";
 
 export async function POST(req: Request) {
@@ -11,7 +11,10 @@ export async function POST(req: Request) {
   if (!parsed.success) return json({ error: "Enter your email and password." }, 400);
 
   const ok = await verifyAdminCredentials(parsed.data.email, parsed.data.password);
-  if (!ok) return json({ error: "Incorrect email or password." }, 401);
+  if (!ok) {
+    console.warn("admin login failed", JSON.stringify(adminAuthDiagnostics(parsed.data.email)));
+    return json({ error: "Incorrect email or password." }, 401);
+  }
 
   const token = await createSessionToken(parsed.data.email);
   const proto = req.headers.get("x-forwarded-proto") ?? new URL(req.url).protocol.replace(":", "");

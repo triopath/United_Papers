@@ -55,6 +55,20 @@ export async function verifyAdminCredentials(email: string, password: string): P
   return emailOk && passOk;
 }
 
+/**
+ * Safe diagnostics for SERVER LOGS ONLY (Vercel -> Logs). Contains no secrets or values:
+ * just which mode is configured and whether the typed email matched.
+ */
+export function adminAuthDiagnostics(typedEmail: string) {
+  const expected = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  return {
+    emailConfigured: !!expected,
+    emailMatches: !!expected && typedEmail.trim().toLowerCase() === expected,
+    mode: process.env.ADMIN_PASSWORD ? "plain" : adminHash() ? "hash" : "none",
+    vercelEnv: process.env.VERCEL_ENV ?? "local", // production | preview | development
+  };
+}
+
 export async function createSessionToken(email: string): Promise<string> {
   return new SignJWT({ role: "admin" })
     .setProtectedHeader({ alg: "HS256" })
