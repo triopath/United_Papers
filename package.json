@@ -16,7 +16,9 @@
                     "db:reset":  "prisma migrate reset --force --skip-seed",
                     "test":  "vitest run",
                     "verify":  "npm run typecheck \u0026\u0026 npm run lint \u0026\u0026 npm test",
-                    "images:optimize":  "tsx scripts/optimize-images.ts"
+                    "images:optimize":  "tsx scripts/optimize-images.ts",
+                    "postinstall":  "prisma generate",
+                    "prod:env":  "tsx scripts/prod-env.ts"
                 },
     "dependencies":  {
                          "@base-ui/react":  "^1.9.0",
