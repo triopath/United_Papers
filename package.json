@@ -18,7 +18,8 @@
                     "verify":  "npm run typecheck \u0026\u0026 npm run lint \u0026\u0026 npm test",
                     "images:optimize":  "tsx scripts/optimize-images.ts",
                     "postinstall":  "prisma generate",
-                    "prod:env":  "tsx scripts/prod-env.ts"
+                    "prod:env":  "tsx scripts/prod-env.ts",
+                    "db:check":  "tsx scripts/db-check.ts"
                 },
     "dependencies":  {
                          "@base-ui/react":  "^1.9.0",
