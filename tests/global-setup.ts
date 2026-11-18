@@ -6,6 +6,7 @@ export default async function setup() {
   const url = new URL(process.env.DATABASE_URL!);
   const dbName = url.pathname.slice(1);
   if (!dbName.endsWith("_test")) throw new Error(`Refusing to run tests against non-test DB "${dbName}"`);
+  if (!["localhost", "127.0.0.1", "::1"].includes(url.hostname)) throw new Error(`Refusing to run tests against remote host "${url.hostname}"`);
 
   const admin = new URL(url.toString());
   admin.pathname = "/postgres";

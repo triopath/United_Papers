@@ -76,6 +76,16 @@ describe("admin login", () => {
     expect(res.status).toBe(401);
   });
 
+  it("supports a plain ADMIN_PASSWORD env var (takes precedence) and still rejects wrong ones", async () => {
+    process.env.ADMIN_PASSWORD = "Demo-Pass-2026";
+    const post = (ip: string, password: string) =>
+      login(req("/api/admin/login", { method: "POST", ip, body: JSON.stringify({ email: "OWNER@unitedpapers.demo", password }) }));
+    expect((await post("10.1.1.1", "Demo-Pass-2026")).status).toBe(200);
+    expect((await post("10.1.1.2", "correct-horse-battery")).status).toBe(401); // old hash password no longer works
+    expect((await post("10.1.1.3", "demo-pass-2026")).status).toBe(401); // case-sensitive
+    delete process.env.ADMIN_PASSWORD;
+  });
+
   it("rate-limits repeated login attempts", async () => {
     let last = 0;
     for (let i = 0; i < 10; i++) {

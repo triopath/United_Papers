@@ -134,7 +134,8 @@ describe("inventory protection", () => {
     );
     const ok = results.filter((r) => r.status === "fulfilled").length;
     const unexpected = results.filter((r) => r.status === "rejected" && (r.reason as OrderError).code !== "INSUFFICIENT_STOCK");
-    expect(unexpected).toHaveLength(0);
+    // Show WHY on failure (name + first line of the message) rather than just a count.
+    expect(unexpected.map((r) => String((r as PromiseRejectedResult).reason?.message ?? r).split("\n").filter(Boolean).slice(-2).join(" | ").slice(0, 220))).toEqual([]);
     expect(ok).toBe(10);
     expect(await stock("UP-CUP-H16")).toEqual({ onHand: 10, reserved: 10, available: 0 });
     const orderNumbers = (await prisma.salesOrder.findMany()).map((o) => o.orderNumber);

@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
@@ -28,12 +29,28 @@ function adminHash(): string | null {
   return h.replace(/\\\$/g, "$"); // tolerate dotenv-escaped dollars
 }
 
-/** Fails closed: if admin credentials are not configured, nobody can log in. */
+const sha = (s: string) => createHash("sha256").update(s).digest();
+
+/**
+ * Fails closed: if admin credentials are not configured, nobody can log in.
+ * Password comes from the environment (never from code):
+ *  - ADMIN_PASSWORD       simple option for the demo (set it in Vercel; change it any time + redeploy)
+ *  - ADMIN_PASSWORD_HASH  bcrypt hash (preferred for real use). Used only when ADMIN_PASSWORD is unset.
+ */
 export async function verifyAdminCredentials(email: string, password: string): Promise<boolean> {
+  const expectedEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  if (!expectedEmail) return false;
+  const emailOk = email.trim().toLowerCase() === expectedEmail;
+
+  const plain = process.env.ADMIN_PASSWORD;
+  if (plain) {
+    // Compare fixed-length digests in constant time; never short-circuit on the email.
+    const passOk = timingSafeEqual(sha(password), sha(plain));
+    return emailOk && passOk;
+  }
+
   const hash = adminHash();
-  const expectedEmail = process.env.ADMIN_EMAIL?.toLowerCase();
-  if (!hash || !expectedEmail) return false;
-  const emailOk = email.toLowerCase() === expectedEmail;
+  if (!hash) return false;
   const passOk = await bcrypt.compare(password, emailOk ? hash : DUMMY_HASH);
   return emailOk && passOk;
 }

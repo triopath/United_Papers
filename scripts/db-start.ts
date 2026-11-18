@@ -13,6 +13,11 @@ if (!url.password) {
   console.error("DATABASE_URL missing. Run: npm run setup:env");
   process.exit(1);
 }
+if (!["localhost", "127.0.0.1", "::1"].includes(url.hostname)) {
+  console.error(`Refusing to start a LOCAL database: DATABASE_URL points at "${url.hostname}" (a remote host).`);
+  console.error("Clear the variable (PowerShell: Remove-Item Env:DATABASE_URL) so .env is used.");
+  process.exit(1);
+}
 const dir = resolve(process.cwd(), ".pgdata");
 const fresh = !existsSync(resolve(dir, "PG_VERSION"));
 
